@@ -18,7 +18,7 @@ public partial class ProcessMemory : IDisposable
     /// <summary>
     /// Internal handle to the external process.
     /// </summary>
-    private IntPtr pHandle;
+    private readonly IntPtr pHandle;
 
     /// <summary>
     /// The name of the hooked process
