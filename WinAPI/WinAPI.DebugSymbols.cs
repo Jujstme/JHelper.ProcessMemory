@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using JHelper.Common.MemoryUtils;
 
 namespace JHelper.Common.ProcessInterop.API;
 
@@ -81,7 +82,7 @@ internal static partial class WinAPI
             ArrayPool<int>.Shared.Return(functionAddresses);
             ArrayPool<int>.Shared.Return(nameAddresses);
         }
-
+      
         /// <summary>
         /// Reads the export directory structure from the given memory address in the external process.
         /// </summary>
@@ -92,19 +93,21 @@ internal static partial class WinAPI
         [SkipLocalsInit]
         static bool ReadExportDirectory(IntPtr processHandle, IntPtr exportDirectory, out ExportDirectoryData exportData)
         {
-            Span<int> exportDirBuffer = stackalloc int[10];
-            if (!ReadProcessMemory<int>(processHandle, exportDirectory, exportDirBuffer))
+            using (ArrayRental<int> exportDirBuffer = new(stackalloc int[10]))
             {
-                exportData = default;
-                return false;
-            }
+                if (!ReadProcessMemory<int>(processHandle, exportDirectory, exportDirBuffer.Span))
+                {
+                    exportData = default;
+                    return false;
+                }
 
-            exportData = new ExportDirectoryData
-            (
-                exportDirBuffer[5], // Number of functions in the export table
-                exportDirBuffer[7], // RVA to the function addresses
-                exportDirBuffer[8]  // RVA to the name addresses
-            );
+                exportData = new ExportDirectoryData
+                (
+                    exportDirBuffer.Span[5], // Number of functions in the export table
+                    exportDirBuffer.Span[7], // RVA to the function addresses
+                    exportDirBuffer.Span[8]  // RVA to the name addresses
+                );
+            }
 
             return true;
         }
@@ -119,20 +122,24 @@ internal static partial class WinAPI
         [SkipLocalsInit]
         static string? GetFunctionName(IntPtr processHandle, IntPtr nameAddress)
         {
-            Span<sbyte> nameBytes = stackalloc sbyte[255];
-            if (!ReadProcessMemory<sbyte>(processHandle, nameAddress, nameBytes))
-                return null;
-
-            int nullTerminatorIndex = nameBytes.IndexOf((sbyte)0);
-
-            int length = nullTerminatorIndex == -1
-                ? nameBytes.Length
-                : nullTerminatorIndex;
-
-            unsafe
+            using (ArrayRental<sbyte> nameBytes = new(stackalloc sbyte[255]))
             {
-                fixed (sbyte* ptr = nameBytes)
-                    return new string(ptr, 0, length);
+                Span<sbyte> span = nameBytes.Span;
+
+                if (!ReadProcessMemory<sbyte>(processHandle, nameAddress, span))
+                    return null;
+
+                int nullTerminatorIndex = span.IndexOf((sbyte)0);
+
+                int length = nullTerminatorIndex == -1
+                    ? span.Length
+                    : nullTerminatorIndex;
+
+                unsafe
+                {
+                    fixed (sbyte* ptr = nameBytes.Span)
+                        return new string(ptr, 0, length);
+                }
             }
         }
     }

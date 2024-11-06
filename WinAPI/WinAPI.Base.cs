@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using JHelper.Common.ProcessInterop.API.Definitions;
 using System.Runtime.CompilerServices;
+using JHelper.Common.MemoryUtils;
 
 namespace JHelper.Common.ProcessInterop.API;
 
@@ -20,17 +21,14 @@ internal static partial class WinAPI
     internal static bool OpenProcessHandleByName(string name, out int processId, out IntPtr pHandle)
     {
         const int processIdsArraySize = 512; // The maximum number of process IDs to retrieve (512 is a good estimate)
-        int[]? processIds = null;            // Array to hold the process IDs
 
-        try
+        using (ArrayRental<int> processIds = new ArrayRental<int>(processIdsArraySize))
         {
-            // Rent an array from the shared pool to hold the process IDs
-            processIds = ArrayPool<int>.Shared.Rent(processIdsArraySize);
             int sizeNeeded;
 
             unsafe
             {
-                fixed (int* pProcessIds = processIds)
+                fixed (int* pProcessIds = processIds.Span)
                 {
                     // Get the array of process IDs
                     if (!EnumProcesses(pProcessIds, processIdsArraySize * sizeof(int), out sizeNeeded))
@@ -42,13 +40,13 @@ internal static partial class WinAPI
                     }
                 }
             }
-            
+
             int numProcesses = sizeNeeded / sizeof(int);
 
             // Iterate over each process ID and yield the process name
             for (int i = 0; i < numProcesses; i++)
             {
-                int localProcessId = processIds[i];
+                int localProcessId = processIds.Span[i];
 
                 if (!OpenProcess(localProcessId, out IntPtr localHandle))
                     continue;   // If unable to open, skip to the next process
@@ -65,12 +63,6 @@ internal static partial class WinAPI
                 // If we didn't find the right process, close the handle to avoid leaks
                 CloseProcessHandle(localHandle);
             }
-        }
-        finally
-        {
-            // Clean up: Return the rented array back to the pool to avoid memory leaks
-            if (processIds is not null)
-                ArrayPool<int>.Shared.Return(processIds);
         }
 
         // If no matching process is found, set outputs to default and return false
@@ -100,15 +92,17 @@ internal static partial class WinAPI
         if (pHandle == IntPtr.Zero)
             throw new InvalidOperationException("Invalid process handle.");
 
-        const int BUFFER_LENGTH = 256;
-        Span<char> nameBuffer = stackalloc char[BUFFER_LENGTH];
+        const int BUFFER_LENGTH = 255;
 
-        unsafe
+        using (ArrayRental<char> nameBuffer = BUFFER_LENGTH < 256 ? new ArrayRental<char>(stackalloc char[BUFFER_LENGTH]) : new ArrayRental<char>(BUFFER_LENGTH))
         {
-            fixed (char* pNameBuffer = nameBuffer)
+            unsafe
             {
-                uint size = GetModuleBaseNameW(pHandle, IntPtr.Zero, pNameBuffer, BUFFER_LENGTH);
-                return size == 0 ? string.Empty : Marshal.PtrToStringUni((IntPtr)pNameBuffer);
+                fixed (char* pNameBuffer = nameBuffer.Span)
+                {
+                    uint size = GetModuleBaseNameW(pHandle, IntPtr.Zero, pNameBuffer, BUFFER_LENGTH);
+                    return size == 0 ? string.Empty : Marshal.PtrToStringUni((IntPtr)pNameBuffer);
+                }
             }
         }
         

@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
+using JHelper.Common.MemoryUtils;
 using JHelper.Common.ProcessInterop.API.Definitions;
 
 namespace JHelper.Common.ProcessInterop.API;
@@ -99,30 +100,13 @@ internal static partial class WinAPI
 
         // Define a threshold for when to use stack allocation vs rented memory
         const int StackAllocThreshold = 256;
+        int bufferSize = stringType == StringType.ASCII ? maxLength : maxLength * 2;
+        bool useStackAlloc = bufferSize < StackAllocThreshold;
 
-        // This will hold a rented buffer from the ArrayPool, if needed
-        byte[]? rentedBuffer = null;
-
-        // Allocate a buffer for the string based on the string type and maxLength
-        Span<byte> stringBuffer = stringType == StringType.ASCII
-            ? (maxLength <= StackAllocThreshold * 2 // Check if maxLength can fit in stack allocation for ASCII
-                ? stackalloc byte[maxLength] // Use stack allocation for small buffers
-                : (rentedBuffer = ArrayPool<byte>.Shared.Rent(maxLength)) // Rent a larger buffer from the pool
-            )
-            : (maxLength <= StackAllocThreshold // Check if maxLength can fit in stack allocation for UTF-16
-                ? stackalloc byte[maxLength * 2] // Use stack allocation for small buffers (UTF-16 = 2 bytes per character)
-                : (rentedBuffer = ArrayPool<byte>.Shared.Rent(maxLength * 2)) // Rent a larger buffer from the pool
-            );
-
-        // If a rented buffer was allocated, slice it to the required length. Remember ArrayPool does not guarantee
-        // the rented array is exactly of the required size, but it guarantees it is AT LEAST the required size.
-        if (rentedBuffer is not null)
-            stringBuffer = rentedBuffer.AsSpan(0, stringType == StringType.ASCII ? maxLength : maxLength * 2);
-
-        try
+        using (ArrayRental<byte> rentedBuffer = useStackAlloc ? new(stackalloc byte[bufferSize]) : new(bufferSize))
         {
             // Attempt to read the string data from the specified process memory address
-            if (!ReadProcessMemory(processHandle, address, stringBuffer))
+            if (!ReadProcessMemory(processHandle, address, rentedBuffer.Span))
             {
                 // If reading fails, set result to default value and return false
                 result = defaultValue;
@@ -130,14 +114,8 @@ internal static partial class WinAPI
             }
 
             // Decode the read bytes into a string based on the specified string type
-            result = DecodeString(stringBuffer, stringType);
+            result = DecodeString(rentedBuffer.Span, stringType);
             return true;
-        }
-        finally
-        {
-            // If a rented buffer was used, return it to the ArrayPool to free resources
-            if (rentedBuffer is not null)
-                ArrayPool<byte>.Shared.Return(rentedBuffer);
         }
     }
 
