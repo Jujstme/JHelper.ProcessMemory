@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using JHelper.Common.ProcessInterop.API;
 
 namespace JHelper.Common.ProcessInterop;
@@ -41,8 +42,17 @@ public readonly struct SymbolCollection : IEnumerable<Symbol>
     /// <returns><c>true</c> if the symbol was found; otherwise, <c>false</c>.</returns>
     public bool TryGetValue(string name, out IntPtr symbolAddress)
     {
-        symbolAddress = this.FirstOrDefault(m => m.Name == name).Address;
-        return symbolAddress != default;
+        foreach (var entry in this)
+        {
+            if (entry.Name == name)
+            {
+                symbolAddress = entry.Address;
+                return true;
+            }
+        }
+
+        symbolAddress = IntPtr.Zero;
+        return false;
     }
 
     /// <summary>
@@ -68,6 +78,7 @@ public readonly struct SymbolCollection : IEnumerable<Symbol>
 /// Represents a symbol, which includes its name and memory address.
 /// Used to represent exported functions or other symbols in a process module.
 /// </summary>
+[SkipLocalsInit]
 public readonly record struct Symbol
 {
     /// <summary>

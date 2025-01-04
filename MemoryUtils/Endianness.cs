@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace JHelper.Common.MemoryUtils;
 
@@ -37,6 +38,7 @@ public static class Endian
     /// <typeparam name="T">The unmanaged type whose byte order will be swapped.</typeparam>
     /// <param name="value">The value whose byte order will be swapped.</param>
     /// <returns>The value with its byte order swapped.</returns>
+    [SkipLocalsInit]
     public unsafe static T SwapEndianness<T>(this T value) where T : unmanaged
     {
         int size = sizeof(T);

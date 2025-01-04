@@ -51,7 +51,7 @@ public readonly struct MemoryPagesSnapshot : IEnumerable<MemoryPage>
 /// Contains metadata about the memory region and allows scanning it for patterns.
 /// </summary>
 [SkipLocalsInit]
-public record MemoryPage
+public readonly record struct MemoryPage
 {
     private readonly IntPtr pHandle;
 
@@ -116,7 +116,7 @@ public record MemoryPage
         AllocationProtect = allocationProtect;
         RegionSize = regionSize;
         State = state;
-        Protect = protect; Type = type;
+        Protect = protect;
         Type = type;
     }
 

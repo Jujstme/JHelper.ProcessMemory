@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -63,14 +62,14 @@ internal static partial class WinAPI
         unsafe
         {
             fixed (byte* pBuf = buffer)
-                return ReadProcessMemory(processHandle, address, pBuf, size, out nint bytesRead) != 0 && bytesRead == size;
+                return ReadProcessMemory(processHandle, address, pBuf, size, out nint bytesRead) && bytesRead == size;
         }
 
         // Import the ReadProcessMemory function from kernel32.dll.
         // It is used to read memory from the external process into a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static unsafe extern int ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesRead);
+        static unsafe extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesRead);
     }
 
     /// <summary>
@@ -234,13 +233,13 @@ internal static partial class WinAPI
             throw new ArgumentException("Tried to write an empty data buffer.");
 
         fixed (byte* pBuf = buffer)
-            return WriteProcessMemory(processHandle, address, pBuf, size, out nint bytesWritten) != 0 && bytesWritten == size;
+            return WriteProcessMemory(processHandle, address, pBuf, size, out nint bytesWritten) && bytesWritten == size;
 
         // Import the WriteProcessMemory function from kernel32.dll.
         // It is used to write memory to the external process from a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static unsafe extern int WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesWritten);
+        static unsafe extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesWritten);
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Security;
 using JHelper.Common.ProcessInterop.API.Definitions;
@@ -142,14 +141,14 @@ internal static partial class WinAPI
     /// </summary>
     internal static bool CloseProcessHandle(IntPtr processHandle)
     {
-        return CloseHandle(processHandle) != 0;
+        return CloseHandle(processHandle);
 
         // The CloseHandle function is imported from kernel32.dll.
         // It is used to close the handle to the external process when we're done with it.
         // As the handle is an unmanaged resource, it is important to close the handle in order to prevent leaking of resources.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static extern int CloseHandle(IntPtr hObject);
+        static extern bool CloseHandle(IntPtr hObject);
     }
 
     /// <summary>
@@ -190,25 +189,25 @@ internal static partial class WinAPI
         
         if (osVersion.Major > 10 || (osVersion.Major == 10 && osVersion.Build >= 10586))
         {
-            return IsWow64Process2(hProcess, out ushort processMachine, out _) != 0
+            return IsWow64Process2(hProcess, out ushort processMachine, out _)
                 && processMachine != 0x014C  // x86
                 && processMachine != 0x01C0  // ARM
                 && processMachine != 0x01C4; // ARMv7
 
             [DllImport(Libs.Kernel32)]
             [SuppressUnmanagedCodeSecurity]
-            static extern int IsWow64Process2(IntPtr hProcess, out ushort pProcessMachine, out ushort pNativeMachine);
+            static extern bool IsWow64Process2(IntPtr hProcess, out ushort pProcessMachine, out ushort pNativeMachine);
         }
         else
         {
             // Check if the process is running under WOW64.
             // If the system call fails, we return false by default, although this result
             // is inconsequential as it generally assumes the presence of invalid handle.
-            return IsWow64Process(hProcess, out int iswow64) != 0 && iswow64 == 0;
+            return IsWow64Process(hProcess, out bool iswow64) && !iswow64;
 
             [DllImport(Libs.Kernel32)]
             [SuppressUnmanagedCodeSecurity]
-            static extern int IsWow64Process(IntPtr hProcess, out int wow64Process);
+            static extern bool IsWow64Process(IntPtr hProcess, out bool wow64Process);
         }
     }
 }

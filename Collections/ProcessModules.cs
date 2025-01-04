@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using JHelper.Common.ProcessInterop.API;
 
 namespace JHelper.Common.ProcessInterop;
@@ -48,9 +49,17 @@ public readonly struct ProcessModuleCollection : IEnumerable<ProcessModule>
     /// <returns>True if the module was found; otherwise, false.</returns>
     public bool TryGetValue(string name, out ProcessModule module)
     {
-        ProcessModule? mod = this.FirstOrDefault(m => m.ModuleName == name);
-        module = mod is null ? MainModule : mod;
-        return module is not null;
+        foreach (ProcessModule mod in this)
+        {
+            if (mod.ModuleName == name)
+            {
+                module = mod;
+                return true;
+            }
+        }
+
+        module = default;
+        return false;
     }
 
     /// <summary>
@@ -76,7 +85,8 @@ public readonly struct ProcessModuleCollection : IEnumerable<ProcessModule>
 /// Represents a module loaded into a process.
 /// Provides information about the module, such as its base address, size, and name.
 /// </summary>
-public record ProcessModule
+[SkipLocalsInit]
+public readonly record struct ProcessModule
 {
     private readonly IntPtr processHandle;
 

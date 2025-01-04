@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace JHelper.Common.Collections;
+﻿namespace JHelper.Common.Collections;
 
 /// <summary>
 /// A simple utility class that acts as a counter, incrementing by 1 each time 

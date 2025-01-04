@@ -250,7 +250,10 @@ public partial class ProcessMemory : IDisposable
         foreach (int offset in offsets)
         {
             if (!ReadPointer(value, out value) || value == IntPtr.Zero)
+            {
+                value = IntPtr.Zero;
                 return false;
+            }
             value += offset;
         }
         return true;
