@@ -44,7 +44,7 @@ public partial class ProcessMemory : IDisposable
     /// <param name="address">The memory address to write to.</param>
     /// <param name="offsets">Optional offsets for pointer dereferencing.</param>
     /// <returns>True if the array was written successfully, otherwise false.</returns>
-    public bool WriteArray<T>(IntPtr address, T[] array, params int[] offsets) where T : unmanaged
+    public bool WriteArray<T>(IntPtr address, ReadOnlySpan<T> array, params int[] offsets) where T : unmanaged
     {
         if (DerefOffsets(address, out IntPtr endAddress, offsets))
             return WriteArray(endAddress, array);
