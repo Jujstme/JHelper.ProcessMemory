@@ -126,7 +126,7 @@ public readonly record struct ProcessModule
     /// <returns>A string that represents the current module (its name).</returns>
     public override string ToString()
     {
-        return ModuleName ?? base.ToString();
+        return ModuleName;
     }
 
     /// <summary>

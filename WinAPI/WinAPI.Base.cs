@@ -101,7 +101,12 @@ internal static partial class WinAPI
                 fixed (char* pNameBuffer = nameBuffer.Span)
                 {
                     uint size = GetModuleBaseNameW(pHandle, IntPtr.Zero, pNameBuffer, BUFFER_LENGTH);
-                    return size == 0 ? string.Empty : Marshal.PtrToStringUni((IntPtr)pNameBuffer);
+
+                    if (size == 0)
+                        return string.Empty;
+
+                    string? buf = Marshal.PtrToStringUni((IntPtr)pNameBuffer);
+                    return buf is null ? string.Empty : buf;
                 }
             }
         }

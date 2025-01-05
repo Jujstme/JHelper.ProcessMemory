@@ -33,7 +33,17 @@ public readonly ref struct ArrayRental<T> where T : unmanaged
     /// Provides a span over the rented array up to the requested size.
     /// Allows safe, bounds-checked access to the array without copying data.
     /// </summary>
-    public Span<T> Span { get; }
+    public Span<T> Span
+    {
+        get
+        {
+            if (_disposed)
+                throw new ObjectDisposedException("You can't access the Span in a disposed instance of ArrayRental");
+            return _span;
+        }
+    }
+
+    private readonly Span<T> _span;
 
     /// <summary>
     /// Initializes the ArrayRental with an existing Span, without renting a new array from the pool.
@@ -43,7 +53,7 @@ public readonly ref struct ArrayRental<T> where T : unmanaged
     public ArrayRental(Span<T> span)
     {
         _array = null;
-        Span = span;
+        _span = span;
     }
 
     /// <summary>
@@ -59,7 +69,7 @@ public readonly ref struct ArrayRental<T> where T : unmanaged
 
         // Rent an array from the shared ArrayPool to avoid a new allocation
         _array = ArrayPool<T>.Shared.Rent(size);
-        Span = _array.AsSpan(0, size);
+        _span = _array.AsSpan(0, size);
     }
 
     /// <summary>
@@ -74,8 +84,12 @@ public readonly ref struct ArrayRental<T> where T : unmanaged
             if (_array is not null)
                 ArrayPool<T>.Shared.Return(_array);
 
-            // Mark as disposed using Unsafe workaround (necessary in readonly struct)
-            Unsafe.AsRef(_disposed) = true;
+            // Mark as disposed using unsafe workaround (necessary in readonly struct)
+            unsafe
+            {
+                fixed (bool* ptr = &_disposed)
+                    *ptr = true;
+            }
         }
     }
 }
