@@ -44,7 +44,7 @@ internal static partial class WinAPI
             uint bufferSize = (uint)(handleArraySize * IntPtr.Size); // Size of the moduleHandles array in bytes
 
             // Call the EnumProcessModulesEx function to get the module handles
-            bool enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out uint bytesNeeded, LIST_MODULES_ALL) != 0;
+            bool enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out uint bytesNeeded, LIST_MODULES_ALL);
 
             if (enumSuccess)
             {
@@ -61,7 +61,7 @@ internal static partial class WinAPI
                     bufferSize = (uint)(handleArraySize * IntPtr.Size); // Update the buffer size
 
                     // Call the enumeration function again with the resized array
-                    enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out bytesNeeded, LIST_MODULES_ALL) != 0;
+                    enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out bytesNeeded, LIST_MODULES_ALL);
                     moduleCount = (int)(bytesNeeded / IntPtr.Size);
                 }
 
@@ -80,7 +80,7 @@ internal static partial class WinAPI
                             continue;
 
                         // Retrieve information about the module and skip if the information could not be retrieved
-                        if (GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, Marshal.SizeOf<MODULEINFO>()) == 0)
+                        if (!GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, Marshal.SizeOf<MODULEINFO>()))
                             continue;
 
                         // Get the module's file name
@@ -119,15 +119,18 @@ internal static partial class WinAPI
         // External methods imported from the Windows API
         [DllImport(Libs.Psapi)]
         [SuppressUnmanagedCodeSecurity]
-        static extern int EnumProcessModulesEx(IntPtr hProcess, IntPtr[] lphModule, uint cb, out uint lpcbNeeded, uint dwFilterFlag);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool EnumProcessModulesEx(IntPtr hProcess, [In, Out] IntPtr[] lphModule, uint cb, [Out] out uint lpcbNeeded, uint dwFilterFlag);
 
         [DllImport(Libs.Psapi, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        static extern uint GetModuleFileNameExW(IntPtr hProcess, IntPtr hModule, char[] lpBaseName, uint nSize);
+        [return: MarshalAs(UnmanagedType.U4)]
+        static extern uint GetModuleFileNameExW(IntPtr hProcess, IntPtr hModule, [In, Out] char[] lpBaseName, uint nSize);
 
         [DllImport(Libs.Psapi)]
         [SuppressUnmanagedCodeSecurity]
-        static extern uint GetModuleInformation(IntPtr hProcess, IntPtr hModule, out MODULEINFO lpmodinfo, int nSize);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetModuleInformation(IntPtr hProcess, IntPtr hModule, [Out] out MODULEINFO lpmodinfo, int nSize);
     }
 
     [StructLayout(LayoutKind.Sequential)]

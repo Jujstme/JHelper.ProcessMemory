@@ -69,7 +69,8 @@ internal static partial class WinAPI
         // It is used to read memory from the external process into a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static unsafe extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesRead);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static unsafe extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, [Out] out nint lpNumberOfBytesRead);
     }
 
     /// <summary>
@@ -239,7 +240,8 @@ internal static partial class WinAPI
         // It is used to write memory to the external process from a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static unsafe extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, out nint lpNumberOfBytesWritten);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static unsafe extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, [Out]out nint lpNumberOfBytesWritten);
     }
 
     /// <summary>

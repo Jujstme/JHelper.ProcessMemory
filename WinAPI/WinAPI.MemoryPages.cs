@@ -59,7 +59,8 @@ internal static partial class WinAPI
 
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        static extern nint VirtualQueryEx(IntPtr hProcess, nint lpAddress, out MemoryBasicInformation lpBuffer, nint dwLength);
+        [return: MarshalAs(UnmanagedType.SysInt)]
+        static extern nint VirtualQueryEx(IntPtr hProcess, nint lpAddress, [Out] out MemoryBasicInformation lpBuffer, nint dwLength);
     }
 }
 

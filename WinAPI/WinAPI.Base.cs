@@ -72,7 +72,8 @@ internal static partial class WinAPI
         // Importing necessary methods from the Windows API
         [DllImport(Libs.Psapi)]
         [SuppressUnmanagedCodeSecurity]
-        static unsafe extern bool EnumProcesses(int* lpidProcess, int cb, out int lpcbNeeded);
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static unsafe extern bool EnumProcesses(int* lpidProcess, int cb, [Out] out int lpcbNeeded);
     }
 
     /// <summary>
@@ -108,6 +109,7 @@ internal static partial class WinAPI
         // Import the GetModuleBaseNameW function from the psapi.dll
         [DllImport(Libs.Psapi)]
         [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.U4)]
         static unsafe extern uint GetModuleBaseNameW(IntPtr hProcess, IntPtr hModule, char* lpBaseName, int nSize);
     }
 
@@ -133,6 +135,7 @@ internal static partial class WinAPI
         // It is used to open a handle to the external process with the specified access rights.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.SysInt)]
         static extern IntPtr OpenProcess(uint dwDesiredAccess, int bInheritHandle, int dwProcessId);
     }
 
@@ -148,6 +151,7 @@ internal static partial class WinAPI
         // As the handle is an unmanaged resource, it is important to close the handle in order to prevent leaking of resources.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool CloseHandle(IntPtr hObject);
     }
 
@@ -167,6 +171,7 @@ internal static partial class WinAPI
         // Importing WaitForSingleObject from kernel32.dll
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
+        [return: MarshalAs(UnmanagedType.U4)]
         static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);
     }
 
@@ -196,7 +201,8 @@ internal static partial class WinAPI
 
             [DllImport(Libs.Kernel32)]
             [SuppressUnmanagedCodeSecurity]
-            static extern bool IsWow64Process2(IntPtr hProcess, out ushort pProcessMachine, out ushort pNativeMachine);
+            [return: MarshalAs(UnmanagedType.Bool)]
+            static extern bool IsWow64Process2(IntPtr hProcess, out ushort pProcessMachine, [Out] out ushort pNativeMachine);
         }
         else
         {
@@ -207,7 +213,8 @@ internal static partial class WinAPI
 
             [DllImport(Libs.Kernel32)]
             [SuppressUnmanagedCodeSecurity]
-            static extern bool IsWow64Process(IntPtr hProcess, out bool wow64Process);
+            [return: MarshalAs(UnmanagedType.Bool)]
+            static extern bool IsWow64Process(IntPtr hProcess, [Out] out bool wow64Process);
         }
     }
 }
