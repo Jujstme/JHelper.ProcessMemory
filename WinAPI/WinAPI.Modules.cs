@@ -67,6 +67,12 @@ internal static partial class WinAPI
 
                 if (enumSuccess)
                 {
+                    int sizeofModuleInfo;
+                    unsafe
+                    {
+                        sizeofModuleInfo = sizeof(MODULEINFO);
+                    }
+
                     // Iterate over the module handles
                     for (int i = 0; i < moduleCount; i++)
                     {
@@ -80,7 +86,7 @@ internal static partial class WinAPI
                             continue;
 
                         // Retrieve information about the module and skip if the information could not be retrieved
-                        if (!GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, Marshal.SizeOf<MODULEINFO>()))
+                        if (!GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, sizeofModuleInfo))
                             continue;
 
                         // Get the module's file name

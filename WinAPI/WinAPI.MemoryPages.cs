@@ -32,7 +32,13 @@ internal static partial class WinAPI
         nint address = min;
 
         // Size of the MemoryBasicInformation structure (used in VirtualQueryEx).
-        int memInfoSize = Unsafe.SizeOf<MemoryBasicInformation>();
+        int memInfoSize;
+
+        unsafe
+        {
+            memInfoSize = sizeof(MemoryBasicInformation);
+        }
+        
 
         while (address < max && VirtualQueryEx(pHandle, address, out MemoryBasicInformation memInfo, memInfoSize) != 0)
         {

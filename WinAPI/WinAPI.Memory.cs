@@ -21,7 +21,7 @@ internal static partial class WinAPI
     {
         fixed (void* valuePtr = &value)
         {
-            Span<byte> valueBuffer = new(valuePtr, Unsafe.SizeOf<T>());
+            Span<byte> valueBuffer = new(valuePtr, sizeof(T));
             return ReadProcessMemory(processHandle, address, valueBuffer);
         }
     }
@@ -197,7 +197,7 @@ internal static partial class WinAPI
     /// <returns>True if the value is successfully written, false otherwise.</returns>
     internal static unsafe bool WriteProcessMemory<T>(IntPtr processHandle, IntPtr address, T value) where T : unmanaged
     {
-        ReadOnlySpan<byte> valueBuffer = new(&value, Unsafe.SizeOf<T>());
+        ReadOnlySpan<byte> valueBuffer = new(&value, sizeof(T));
         return WriteProcessMemory(processHandle, address, valueBuffer);
     }
 
