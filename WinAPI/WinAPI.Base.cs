@@ -21,7 +21,7 @@ internal static partial class WinAPI
     {
         const int processIdsArraySize = 512; // The maximum number of process IDs to retrieve (512 is a good estimate)
 
-        using (ArrayRental<int> processIds = new ArrayRental<int>(processIdsArraySize))
+        using (ArrayRental<int> processIds = new(processIdsArraySize))
         {
             int sizeNeeded;
 
@@ -94,7 +94,7 @@ internal static partial class WinAPI
 
         const int BUFFER_LENGTH = 255;
 
-        using (ArrayRental<char> nameBuffer = BUFFER_LENGTH < 256 ? new ArrayRental<char>(stackalloc char[BUFFER_LENGTH]) : new ArrayRental<char>(BUFFER_LENGTH))
+        using (ArrayRental<char> nameBuffer = BUFFER_LENGTH < 256 ? new(stackalloc char[BUFFER_LENGTH]) : new(BUFFER_LENGTH))
         {
             unsafe
             {
@@ -105,8 +105,7 @@ internal static partial class WinAPI
                     if (size == 0)
                         return string.Empty;
 
-                    string? buf = Marshal.PtrToStringUni((IntPtr)pNameBuffer);
-                    return buf is null ? string.Empty : buf;
+                    return new string(pNameBuffer);
                 }
             }
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using JHelper.Common.ProcessInterop.API;
 
 namespace JHelper.Common.ProcessInterop;
@@ -23,19 +24,40 @@ public partial class ProcessMemory : IDisposable
     /// <summary>
     /// The name of the hooked process
     /// </summary>
-    public string ProcessName => processName ??= WinAPI.GetProcessName(pHandle);
+    public string ProcessName
+    {
+        get
+        {
+            processName ??= WinAPI.GetProcessName(pHandle);
+            return processName;
+        }
+    }
     private string? processName = null;
 
     /// <summary>
     /// Indicates whether the attached process is 64-bit.
     /// </summary>
-    public bool Is64Bit => is64Bit ??= WinAPI.Is64Bit(pHandle);    
+    public bool Is64Bit
+    {
+        get
+        {
+            is64Bit ??= WinAPI.Is64Bit(pHandle);
+            return is64Bit.Value;
+        }
+    }
     private bool? is64Bit = null;
 
     /// <summary>
     /// Gets the size of pointers for the process (8 bytes for 64-bit, 4 bytes for 32-bit).
     /// </summary>
-    public byte PointerSize => pointerSize ??= (byte)(Is64Bit ? 8 : 4);
+    public byte PointerSize
+    {
+        get
+        {
+            pointerSize ??= (byte)(Is64Bit ? 8 : 4);
+            return pointerSize.Value;
+        }
+    }
     private byte? pointerSize = null;
 
     /// <summary>
@@ -46,7 +68,14 @@ public partial class ProcessMemory : IDisposable
     /// <summary>
     /// The main module (executable) of the attached process.
     /// </summary>
-    public ProcessModule MainModule => mainModule ??= new ProcessModuleCollection(pHandle, true).First();
+    public ProcessModule MainModule
+    {
+        get
+        {
+            mainModule ??= new ProcessModuleCollection(pHandle, true).First();
+            return mainModule.Value;
+        }
+    }
     private ProcessModule? mainModule = null;
 
     /// <summary>
@@ -73,7 +102,6 @@ public partial class ProcessMemory : IDisposable
             return memoryPages.Value;
         }
     }
-
     private MemoryPagesSnapshot? memoryPages = null;
 
 
@@ -125,4 +153,16 @@ public partial class ProcessMemory : IDisposable
     }
 
     private bool _disposed = false;
+
+    /// <summary>
+    /// Determines if the type <typeparamref name="T"/> is a native pointer type (e.g., IntPtr or UIntPtr).
+    /// </summary>
+    /// <typeparam name="T">The type to check.</typeparam>
+    /// <returns>True if the type is a native pointer type, otherwise false.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsNativePtr<T>()
+    {
+        Type type = typeof(T);
+        return type == typeof(IntPtr) || type == typeof(UIntPtr);
+    }
 }

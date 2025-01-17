@@ -213,18 +213,6 @@ public partial class ProcessMemory : IDisposable
     }
 
     /// <summary>
-    /// Determines if the type <typeparamref name="T"/> is a native pointer type (e.g., IntPtr or UIntPtr).
-    /// </summary>
-    /// <typeparam name="T">The type to check.</typeparam>
-    /// <returns>True if the type is a native pointer type, otherwise false.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsNativePtr<T>()
-    {
-        Type type = typeof(T);
-        return type == typeof(IntPtr) || type == typeof(UIntPtr);
-    }
-
-    /// <summary>
     /// Dereferences a series of pointer offsets starting from a base memory address.
     /// </summary>
     /// <param name="address">The base memory address to start from.</param>
