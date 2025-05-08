@@ -84,6 +84,10 @@ internal static class SignatureScanner
 
                     lastPageSuccess = true; // Set success flag for the current page
                 }
+                else
+                {
+                    lastPageSuccess = false;
+                }
 
                 address = end; // Move to the next page
             }
