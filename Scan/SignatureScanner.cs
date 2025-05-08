@@ -42,6 +42,10 @@ internal static class SignatureScanner
         int signatureLength = pattern.Pattern.Length - 1;   // In reality we want the length - 1, as we need it as an indexer
         nint address = baseAddress;                         // This will get updated while the scanner advances through the memory pages
         nint endAddress = baseAddress + size;               // Final address we want the scanner to stop
+
+        if (endAddress < baseAddress)
+            throw new OverflowException("The calculated end address exceeds the valid address range.");
+
         bool lastPageSuccess = false;                       // For (small) performance gains we can save some processing power in certain situations if reading a memory page fails
         const int PAGE_SIZE = 0x1000;                       // The size of a memory opage (0x1000 bytes)
 
@@ -341,7 +345,7 @@ public class ScanPattern
         int length = signature.Length / 2;
 
         if (length > 255)
-            throw new NotSupportedException("Sigature cannot be longer than 255 bytes.");
+            throw new NotSupportedException("Signature cannot be longer than 255 bytes.");
 
         byte[] _pattern = new byte[length];
         byte[] _mask = new byte[length];
@@ -359,6 +363,11 @@ public class ScanPattern
             _mask[index] = maskByte;
             index += 1;
         }
+
+        // Check if all bytes are wildcards
+        bool allWildcards = _mask.All(maskByte => maskByte == 0x00);
+        if (allWildcards)
+            throw new NotSupportedException("A pattern consisting entirely of wildcards is not supported.");
 
         byte[] skipoffsets = new byte[256];
         byte unknown = 0;
