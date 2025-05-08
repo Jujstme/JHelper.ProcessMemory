@@ -77,9 +77,7 @@ internal static class SignatureScanner
                             : address + value;                  // Regular calculation when not using previous data
 
                         // Yield the found address or invoke the OnFound callback if defined
-                        yield return pattern is MemoryScanPattern memoryPattern
-                            ? memoryPattern.OnFound is not null ? memoryPattern.OnFound(foundAddress) : foundAddress
-                            : foundAddress;
+                        yield return pattern.OnFound is not null ? pattern.OnFound(foundAddress) : foundAddress;
                     }
 
                     lastPageSuccess = true; // Set success flag for the current page
@@ -276,10 +274,39 @@ internal static class SignatureScanner
 /// </summary>
 public class ScanPattern
 {
-    internal byte[] Pattern { get; }    // Array of parsed pattern bytes
-    internal byte[] Mask { get; }       // Array indicating which bytes are fixed and which are wildcards
-    internal byte[] SkipOffsets { get; } // Offset skip table
-    internal int Offset { get; }        // Offset to apply when pattern is found
+    /// <summary>
+    /// Array of parsed pattern bytes
+    /// </summary>
+    internal byte[] Pattern { get; }
+
+    /// <summary>
+    /// Array indicating which bytes are fixed and which are wildcards
+    /// </summary>
+    internal byte[] Mask { get; }
+
+    /// <summary>
+    /// Offset skip table
+    /// </summary>
+    internal byte[] SkipOffsets { get; }
+
+    /// <summary>
+    /// Offset to apply when pattern is found
+    /// </summary>
+    internal int Offset { get; }
+
+    /// <summary>
+    /// A delegate that defines the callback signature to be used when the pattern is found.
+    /// The callback returns an <see cref="IntPtr"/> representing the found address.
+    /// </summary>
+    /// <param name="addr">The address of the found pattern in the memory.</param>
+    /// <returns>An <see cref="IntPtr"/> value that could be used to handle the found address.</returns>
+    public OnFoundCallback? OnFound { get; set; }
+
+    /// <summary>
+    /// Optional callback function that gets invoked when the pattern is found.
+    /// This allows custom handling or further processing when a match is detected.
+    /// </summary>
+    public delegate IntPtr OnFoundCallback(IntPtr addr);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ScanPattern"/> class by parsing the signature string.
@@ -380,41 +407,4 @@ public class ScanPattern
             hex >= 'A' && hex <= 'F' ? hex - 'A' + 10 :
             hex - 'a' + 10;
     }
-}
-
-/// <summary>
-/// Represents a memory scan pattern that extends the base <see cref="ScanPattern"/> class.
-/// This class is meant to be used when scanning the memory of a target.
-/// It includes an optional callback that can be invoked when a pattern is found during a scan.
-/// </summary>
-public class MemoryScanPattern : ScanPattern
-{
-    /// <summary>
-    /// A delegate that defines the callback signature to be used when the pattern is found.
-    /// The callback returns an <see cref="IntPtr"/> representing the found address.
-    /// </summary>
-    /// <param name="addr">The address of the found pattern in the memory.</param>
-    /// <returns>An <see cref="IntPtr"/> value that could be used to handle the found address.</returns>
-    public OnFoundCallback? OnFound { get; set; }
-
-    /// <summary>
-    /// Optional callback function that gets invoked when the pattern is found.
-    /// This allows custom handling or further processing when a match is detected.
-    /// </summary>
-    public delegate IntPtr OnFoundCallback(IntPtr addr);
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MemoryScanPattern"/> class with the specified signature.
-    /// </summary>
-    /// <param name="signature">The memory signature to scan for, represented as a string (e.g., "AA BB ??").</param>
-    public MemoryScanPattern(string signature)
-        : base(signature) { }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MemoryScanPattern"/> class with the specified signature and offset.
-    /// </summary>
-    /// <param name="offset">The offset to be added to the found address when a pattern is matched.</param>
-    /// <param name="signature">The memory signature to scan for, represented as a string (e.g., "AA BB ??").</param>
-    public MemoryScanPattern(int offset, string signature)
-        : base(offset, signature) { }
 }
