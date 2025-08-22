@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace JHelper.ProcessMemory.MemoryUtils;
+namespace JHelper.Common.MemoryUtils;
 
 /// <summary>
 /// Represents a typed pointer abstraction for reading process memory.
