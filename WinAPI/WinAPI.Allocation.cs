@@ -14,10 +14,13 @@ internal static partial class WinAPI
     /// <param name="size">The minimum size of the memory block to allocate, in bytes.</param>
     /// <param name="address">The allocated memory address (out parameter).</param>
     /// <returns>True if memory allocation was successful; otherwise, false.</returns>
-    internal static bool AllocateMemory(IntPtr processHandle, int size, out IntPtr address)
+    internal static bool AllocateMemory(IntPtr processHandle, nint size, out IntPtr address)
     {
         if (processHandle == IntPtr.Zero)
             throw new InvalidOperationException("Invalid process handle.");
+
+        if (size <= 0)
+            throw new ArgumentException("Size of the allocation must be greater than zero and must not be a negative integer.", nameof(size));
 
         // Constants for memory allocation types and protection options
         const uint MEM_COMMIT = 0x1000;             // Commit memory pages
