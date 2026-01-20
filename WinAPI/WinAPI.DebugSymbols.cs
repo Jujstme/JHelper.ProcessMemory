@@ -29,10 +29,10 @@ internal static partial class WinAPI
             yield break;
 
         // The flag 0x20B signifies a 64-bit PE file; anything else is assumed 32-bit.
-        // As a 64-bit processdoesn't necessarily imply that every module is 64-bit
+        // As a 64-bit process doesn't necessarily imply that every module is 64-bit
         // as well (especially for WOW64 modules) we will evaluate this directly from
         // the PE header.
-        bool is64Bit = flag == 0x20b;
+        bool is64Bit = flag == 0x20B;
         int optionalHeaderOffset = is64Bit ? 0x88 : 0x78; // Offset to the export directory depending on 32-bit or 64-bit
 
         // Read the address of the export directory (RVA) from the optional header.
@@ -48,32 +48,41 @@ internal static partial class WinAPI
 
         // Proceed only if export data was successfully retrieved.
         int numberOfFunctions = exportData.NumberOfFunctions;
+        int numberOfNames = exportData.NumberOfNames;
 
         // Allocate arrays to store function addresses and function name addresses.
         int[] functionAddresses = ArrayPool<int>.Shared.Rent(numberOfFunctions);
-        int[] nameAddresses = ArrayPool<int>.Shared.Rent(numberOfFunctions);
+        int[] nameAddresses = ArrayPool<int>.Shared.Rent(numberOfNames);
+        ushort[] nameOrdinals = ArrayPool<ushort>.Shared.Rent(numberOfNames);
 
         try
         {
             // As ArrayPool is nto guaranteed to give us exactly the size we want for the array,
             // we manually specify it in a Span
             Span<int> sFunctionAddresses = functionAddresses.AsSpan(0, numberOfFunctions);
-            Span<int> sNameAddresses = nameAddresses.AsSpan(0, numberOfFunctions);
+            Span<int> sNameAddresses = nameAddresses.AsSpan(0, numberOfNames);
+            Span<ushort> sNameOrdinals = nameOrdinals.AsSpan(0, numberOfNames);
 
             // Read the arrays of function pointers and function name RVAs from the export directory.
             if (!ReadProcessMemory<int>(pHandle, moduleBaseAddress + exportData.AddressOfFunctionsRVA, sFunctionAddresses)
-                || !ReadProcessMemory<int>(pHandle, moduleBaseAddress + exportData.AddressOfNamesRVA, sNameAddresses))
+                || !ReadProcessMemory<int>(pHandle, moduleBaseAddress + exportData.AddressOfNamesRVA, sNameAddresses)
+                || !ReadProcessMemory(pHandle, moduleBaseAddress + exportData.AddressOfNameOrdinalsRVA, sNameOrdinals))
                 yield break;
 
             // Iterate over each function name
-            for (int i = 0; i < numberOfFunctions; i++)
+            for (int i = 0; i < numberOfNames; i++)
             {
                 // Read the function name from memory using the name address.
                 string? functionName = GetFunctionName(pHandle, moduleBaseAddress + nameAddresses[i]);
                 if (functionName is not null)
                 {
-                    // If a valid function name was retrieved, yield it along with the function address.
-                    yield return new Symbol(functionName, moduleBaseAddress + functionAddresses[i]);
+                    int ordinal = nameOrdinals[i];
+
+                    if (ordinal < numberOfFunctions)
+                    {
+                        // If a valid function name was retrieved, yield it along with the function address.
+                        yield return new Symbol(functionName, moduleBaseAddress + functionAddresses[ordinal]);
+                    }
                 }
             }
         }
@@ -81,6 +90,7 @@ internal static partial class WinAPI
         {
             ArrayPool<int>.Shared.Return(functionAddresses);
             ArrayPool<int>.Shared.Return(nameAddresses);
+            ArrayPool<ushort>.Shared.Return(nameOrdinals);
         }
       
         /// <summary>
@@ -104,8 +114,10 @@ internal static partial class WinAPI
                 exportData = new ExportDirectoryData
                 (
                     exportDirBuffer.Span[5], // Number of functions in the export table
+                    exportDirBuffer.Span[6], // Number of names in the export table
                     exportDirBuffer.Span[7], // RVA to the function addresses
-                    exportDirBuffer.Span[8]  // RVA to the name addresses
+                    exportDirBuffer.Span[8], // RVA to the name addresses
+                    exportDirBuffer.Span[9]  // RVA to the name ordinals
                 );
             }
 
@@ -148,10 +160,12 @@ internal static partial class WinAPI
     /// Structure that holds parsed information from the export directory.
     /// </summary>
     [SkipLocalsInit]
-    private readonly ref struct ExportDirectoryData(int numberOfFunctions, int addressOfFunctionsRVA, int addressOfNamesRVA)
+    private readonly ref struct ExportDirectoryData(int numberOfFunctions, int numberOfNames, int addressOfFunctionsRVA, int addressOfNamesRVA, int addressOfNameOrdinalsRVA)
     {
-        public readonly int NumberOfFunctions = numberOfFunctions; // Number of names in the export table
+        public readonly int NumberOfFunctions = numberOfFunctions; // Number of functions in the export table
+        public readonly int NumberOfNames = numberOfNames; // Number of names in the export table
         public readonly int AddressOfFunctionsRVA = addressOfFunctionsRVA; // RVA of the functions array
         public readonly int AddressOfNamesRVA = addressOfNamesRVA; // RVA of the names array
+        public readonly int AddressOfNameOrdinalsRVA = addressOfNameOrdinalsRVA; // RVA of the name ordinals array
     }
 }
