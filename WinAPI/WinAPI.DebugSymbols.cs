@@ -1,8 +1,9 @@
-﻿using System;
+﻿using JHelper.Common.MemoryUtils;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using JHelper.Common.MemoryUtils;
+using System.Text;
 
 namespace JHelper.Common.ProcessInterop.API;
 
@@ -35,9 +36,17 @@ internal static partial class WinAPI
         bool is64Bit = flag == 0x20B;
         int optionalHeaderOffset = is64Bit ? 0x88 : 0x78; // Offset to the export directory depending on 32-bit or 64-bit
 
+        int exportDirectoryRVA;
+        int exportDirectorySize;
+
         // Read the address of the export directory (RVA) from the optional header.
-        if (!ReadProcessMemory<int>(pHandle, peHeaderAddress + optionalHeaderOffset, out int exportDirectoryRVA))
-            yield break;
+        using (ArrayRental<int> exportDirBuffer = new(stackalloc int[2]))
+        {
+            if (!ReadProcessMemory<int>(pHandle, peHeaderAddress + optionalHeaderOffset, exportDirBuffer.Span))
+                yield break;
+            exportDirectoryRVA = exportDirBuffer.Span[0];
+            exportDirectorySize = exportDirBuffer.Span[1];
+        }        
 
         // Calculate the address of the export directory by adding the RVA to the base address.
         IntPtr exportDirectory = moduleBaseAddress + exportDirectoryRVA;
@@ -57,7 +66,7 @@ internal static partial class WinAPI
 
         try
         {
-            // As ArrayPool is nto guaranteed to give us exactly the size we want for the array,
+            // As ArrayPool is not guaranteed to give us exactly the size we want for the array,
             // we manually specify it in a Span
             Span<int> sFunctionAddresses = functionAddresses.AsSpan(0, numberOfFunctions);
             Span<int> sNameAddresses = nameAddresses.AsSpan(0, numberOfNames);
@@ -80,8 +89,14 @@ internal static partial class WinAPI
 
                     if (ordinal < numberOfFunctions)
                     {
+                        int functionRVA = functionAddresses[ordinal];
+
+                        // Check if this is a forwarded export
+                        if (functionRVA >= exportDirectoryRVA && functionRVA < exportDirectoryRVA + exportDirectorySize)
+                            continue;
+
                         // If a valid function name was retrieved, yield it along with the function address.
-                        yield return new Symbol(functionName, moduleBaseAddress + functionAddresses[ordinal]);
+                        yield return new Symbol(functionName, moduleBaseAddress + functionRVA);
                     }
                 }
             }
@@ -134,14 +149,14 @@ internal static partial class WinAPI
         [SkipLocalsInit]
         static string? GetFunctionName(IntPtr processHandle, IntPtr nameAddress)
         {
-            using (ArrayRental<sbyte> nameBytes = new(stackalloc sbyte[255]))
+            using (ArrayRental<byte> nameBytes = new(stackalloc byte[512]))
             {
-                Span<sbyte> span = nameBytes.Span;
+                Span<byte> span = nameBytes.Span;
 
-                if (!ReadProcessMemory<sbyte>(processHandle, nameAddress, span))
+                if (!ReadProcessMemory<byte>(processHandle, nameAddress, span))
                     return null;
 
-                int nullTerminatorIndex = span.IndexOf((sbyte)0);
+                int nullTerminatorIndex = span.IndexOf((byte)0);
 
                 int length = nullTerminatorIndex == -1
                     ? span.Length
@@ -149,8 +164,8 @@ internal static partial class WinAPI
 
                 unsafe
                 {
-                    fixed (sbyte* ptr = nameBytes.Span)
-                        return new string(ptr, 0, length);
+                    fixed (byte* ptr = nameBytes.Span)
+                        return Encoding.ASCII.GetString(ptr, length);
                 }
             }
         }
@@ -162,10 +177,10 @@ internal static partial class WinAPI
     [SkipLocalsInit]
     private readonly ref struct ExportDirectoryData(int numberOfFunctions, int numberOfNames, int addressOfFunctionsRVA, int addressOfNamesRVA, int addressOfNameOrdinalsRVA)
     {
-        public readonly int NumberOfFunctions = numberOfFunctions; // Number of functions in the export table
-        public readonly int NumberOfNames = numberOfNames; // Number of names in the export table
-        public readonly int AddressOfFunctionsRVA = addressOfFunctionsRVA; // RVA of the functions array
-        public readonly int AddressOfNamesRVA = addressOfNamesRVA; // RVA of the names array
-        public readonly int AddressOfNameOrdinalsRVA = addressOfNameOrdinalsRVA; // RVA of the name ordinals array
+        public readonly int NumberOfFunctions = numberOfFunctions;                  // Number of functions in the export table
+        public readonly int NumberOfNames = numberOfNames;                          // Number of names in the export table
+        public readonly int AddressOfFunctionsRVA = addressOfFunctionsRVA;          // RVA of the functions array
+        public readonly int AddressOfNamesRVA = addressOfNamesRVA;                  // RVA of the names array
+        public readonly int AddressOfNameOrdinalsRVA = addressOfNameOrdinalsRVA;    // RVA of the name ordinals array
     }
 }

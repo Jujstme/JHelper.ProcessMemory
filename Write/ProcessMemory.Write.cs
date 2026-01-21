@@ -65,18 +65,4 @@ public partial class ProcessMemory : IDisposable
 
         return WinAPI.WriteProcessMemory<T>(pHandle, address, array);
     }
-
-    /// <summary>
-    /// Writes a string into an external process's memory at a given address.
-    /// </summary>
-    /// <param name="processHandle">Handle to the external process.</param>
-    /// <param name="address">Memory address where the string will be written in the external process.</param>
-    /// <param name="value">The string to write.</param>
-    /// <param name="stringType">Specifies whether the string is ASCII or Unicode.</param>
-    /// <returns>Returns true if the string is successfully written, false otherwise.</returns>
-    /// <exception cref="ArgumentException">Thrown when the string is empty.</exception>
-    public bool WriteString(IntPtr address, string value, StringType stringType)
-    {
-        return WinAPI.WriteString(pHandle, address, value, stringType);
-    }
 }

@@ -72,7 +72,7 @@ public partial class ProcessMemory : IDisposable
     {
         get
         {
-            mainModule ??= new ProcessModuleCollection(pHandle, true).First();
+            mainModule ??= new ProcessModuleCollection(pHandle).First();
             return mainModule.Value;
         }
     }
@@ -85,7 +85,7 @@ public partial class ProcessMemory : IDisposable
     {
         get
         {
-            modules ??= new ProcessModuleCollection(pHandle, false);
+            modules ??= new ProcessModuleCollection(pHandle);
             return modules.Value;
         }
     }

@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -19,7 +20,7 @@ internal static partial class WinAPI
     /// <returns>An enumerable collection of <see cref="ProcessModule"/> objects representing the modules.</returns>
     /// <exception cref="InvalidOperationException">Thrown when the process handle is invalid.</exception>
     [SkipLocalsInit]
-    public static IEnumerable<ProcessModule> EnumProcessModules(IntPtr pHandle, bool firstModuleOnly)
+    public static IEnumerable<ProcessModule> EnumProcessModules(IntPtr pHandle)
     {
         if (pHandle == IntPtr.Zero)
             throw new InvalidOperationException("Invalid process handle.");
@@ -36,79 +37,81 @@ internal static partial class WinAPI
         {
             // Allocate an array to store module handles, using a shared array pool
             moduleHandles = ArrayPool<IntPtr>.Shared.Rent(initialHandleArraySize);
-            int handleArraySize = moduleHandles.Length;
+            int handleArraySize = initialHandleArraySize;
+            uint bufferSize = (uint)(handleArraySize * IntPtr.Size); // Size of the moduleHandles array in bytes
 
             // Allocate an array to store module names
             moduleNameBuffer = ArrayPool<char>.Shared.Rent(allocSize);
 
-            uint bufferSize = (uint)(handleArraySize * IntPtr.Size); // Size of the moduleHandles array in bytes
-
             // Call the EnumProcessModulesEx function to get the module handles
-            bool enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out uint bytesNeeded, LIST_MODULES_ALL);
+            if (!EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out uint bytesNeeded, LIST_MODULES_ALL))
+                yield break;
 
-            if (enumSuccess)
+            // Calculate the number of modules found
+            int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+
+            // If the module count exceeds the initial array size, resize the array
+            if (moduleCount > handleArraySize)
             {
-                // Calculate the number of modules found
-                int moduleCount = (int)(bytesNeeded / IntPtr.Size);
+                const int maxTries = 3;
+                int retryCount= 0;
 
-                // If the module count exceeds the initial array size, resize the array
-                while (enumSuccess && moduleCount > handleArraySize)
+                while (retryCount < maxTries)
                 {
                     ArrayPool<IntPtr>.Shared.Return(moduleHandles); // Return the old array to the pool
                     moduleHandles = ArrayPool<IntPtr>.Shared.Rent(moduleCount); // Rent a new larger array
-                    handleArraySize = moduleHandles.Length;
-
+                    handleArraySize = moduleCount;
                     bufferSize = (uint)(handleArraySize * IntPtr.Size); // Update the buffer size
 
                     // Call the enumeration function again with the resized array
-                    enumSuccess = EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out bytesNeeded, LIST_MODULES_ALL);
+                    if (!EnumProcessModulesEx(pHandle, moduleHandles, bufferSize, out bytesNeeded, LIST_MODULES_ALL))
+                        yield break;
+
                     moduleCount = (int)(bytesNeeded / IntPtr.Size);
+
+                    if (moduleCount <= handleArraySize)
+                        break;
+                    
+                    retryCount++;
                 }
 
-                if (enumSuccess)
-                {
-                    int sizeofModuleInfo;
-                    unsafe
-                    {
-                        sizeofModuleInfo = sizeof(MODULEINFO);
-                    }
+                if (retryCount == maxTries)
+                    yield break; // Failed to get modules within the retry limit
+            }
 
-                    // Iterate over the module handles
-                    for (int i = 0; i < moduleCount; i++)
-                    {
-                        // If we only want the first module, exit after the first iteration
-                        if (i > 0 && firstModuleOnly)
-                            break;
+            int sizeofModuleInfo;
+            unsafe
+            {
+                sizeofModuleInfo = sizeof(MODULEINFO);
+            }
 
-                        // Get the current module handle and skip the iteration if it's invalid
-                        IntPtr moduleHandle = moduleHandles[i];
-                        if (moduleHandle == IntPtr.Zero)
-                            continue;
+            // Iterate over the module handles
+            for (int i = 0; i < moduleCount; i++)
+            {
+                // Get the current module handle and skip the iteration if it's invalid
+                IntPtr moduleHandle = moduleHandles[i];
+                if (moduleHandle == IntPtr.Zero)
+                    continue;
 
-                        // Retrieve information about the module and skip if the information could not be retrieved
-                        if (!GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, sizeofModuleInfo))
-                            continue;
+                // Retrieve information about the module and skip if the information could not be retrieved
+                if (!GetModuleInformation(pHandle, moduleHandle, out MODULEINFO moduleInfo, sizeofModuleInfo))
+                    continue;
 
-                        // Get the module's file name
-                        GetModuleFileNameExW(pHandle, moduleHandle, moduleNameBuffer, allocSize);
+                // Get the module's file name
+                uint fileLength = GetModuleFileNameExW(pHandle, moduleHandle, moduleNameBuffer, allocSize);
+                if (fileLength == 0 || fileLength >= allocSize) // Error or buffer too small
+                    continue;
+                string moduleFileName = new(moduleNameBuffer, 0, (int)fileLength);
 
-                        // Convert the unmanaged module name buffer to a managed string
-                        int stringLength = moduleNameBuffer.AsSpan().IndexOf('\0');
-                        if (stringLength == -1)
-                            stringLength = moduleNameBuffer.Length;
-                        string moduleFileName = new(moduleNameBuffer, 0, stringLength);
-
-                        // Yield a new Module object containing information about the current module
-                        yield return new ProcessModule(
-                            pHandle,
-                            moduleInfo.lpBaseOfDll,             // Base address of the module
-                            moduleInfo.EntryPoint,              // Entry point of the module
-                            moduleFileName,                     // Name of the module
-                            (int)moduleInfo.SizeOfImage,        // Size of the module image
-                            Path.GetFileName(moduleFileName)    // Extract just the file name from the full path
-                        );
-                    }
-                }
+                // Yield a new Module object containing information about the current module
+                yield return new ProcessModule(
+                    pHandle,
+                    moduleInfo.lpBaseOfDll,             // Base address of the module
+                    moduleInfo.EntryPoint,              // Entry point of the module
+                    moduleFileName,                     // Name of the module
+                    (int)moduleInfo.SizeOfImage,        // Size of the module image
+                    Path.GetFileName(moduleFileName)    // Extract just the file name from the full path
+                );
             }
         }
         finally

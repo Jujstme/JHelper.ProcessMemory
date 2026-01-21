@@ -48,6 +48,7 @@ internal static partial class WinAPI
     /// <param name="address">The memory address to read from in the external process.</param>
     /// <param name="buffer">The buffer where the memory will be written.</param>
     /// <returns>True if the memory is successfully read, false otherwise.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the process handle is invalid.</exception>
     /// <exception cref="ArgumentException">Thrown when the buffer is empty.</exception>
     internal static bool ReadProcessMemory(IntPtr processHandle, IntPtr address, Span<byte> buffer)
     {
@@ -59,6 +60,10 @@ internal static partial class WinAPI
         if (size == 0)
             throw new ArgumentException("Buffer cannot be empty.");
 
+        // Early return for null address to avoid unnecessary kernel transition
+        if (address == IntPtr.Zero)
+            return false;
+
         unsafe
         {
             fixed (byte* pBuf = buffer)
@@ -69,7 +74,6 @@ internal static partial class WinAPI
         // It is used to read memory from the external process into a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
         static unsafe extern bool ReadProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, [Out] out nint lpNumberOfBytesRead);
     }
 
@@ -78,7 +82,7 @@ internal static partial class WinAPI
     /// </summary>
     /// <param name="processHandle">Handle to the external process.</param>
     /// <param name="address">Memory address where the string is stored in the external process.</param>
-    /// <param name="maxLength">Maximum length of the string to read.</param>
+    /// <param name="maxLength">Maximum length of the string to read (in characters).</param>
     /// <param name="stringType">Specifies whether the string is ASCII, Unicode, or should be auto-detected.</param>
     /// <param name="result">The decoded string result, or the default string if reading fails.</param>
     /// <param name="defaultValue">Optional default string to return if the read fails or the length is zero.</param>
@@ -101,7 +105,7 @@ internal static partial class WinAPI
         // Define a threshold for when to use stack allocation vs rented memory
         const int StackAllocThreshold = 256;
         int bufferSize = stringType == StringType.ASCII ? maxLength : maxLength * 2;
-        bool useStackAlloc = bufferSize < StackAllocThreshold;
+        bool useStackAlloc = bufferSize <= StackAllocThreshold;
 
         using (ArrayRental<byte> rentedBuffer = useStackAlloc ? new(stackalloc byte[bufferSize]) : new(bufferSize))
         {
@@ -127,14 +131,12 @@ internal static partial class WinAPI
     /// <returns>The decoded string result.</returns>
     private static string DecodeString(ReadOnlySpan<byte> buffer, StringType stringType)
     {
-        if (stringType == StringType.AutoDetect)
-            stringType = DetectStringType(buffer);
-
         return stringType switch
         {
             StringType.Unicode => DecodeUnicodeString(buffer),
             StringType.ASCII => DecodeASCIIString(buffer),
-            _ => throw new NotImplementedException("Invalid string type.")
+            StringType.AutoDetect => DecodeString(buffer, DetectStringType(buffer)), // Recursive call
+            _ => throw new ArgumentOutOfRangeException(nameof(stringType), stringType, "Invalid string type.")
         };
     }
 
@@ -156,8 +158,8 @@ internal static partial class WinAPI
     private static string DecodeUnicodeString(ReadOnlySpan<byte> stringBuffer)
     {
         ReadOnlySpan<char> charSpan = MemoryMarshal.Cast<byte, char>(stringBuffer);
-        int nullTerminatorIndex = charSpan.IndexOf('\0');
 
+        int nullTerminatorIndex = charSpan.IndexOf('\0');
         if (nullTerminatorIndex == -1)
             nullTerminatorIndex = charSpan.Length;
 
@@ -224,48 +226,31 @@ internal static partial class WinAPI
     /// <param name="buffer">The buffer containing bytes to write.</param>
     /// <returns>True if the buffer is successfully written, false otherwise.</returns>
     /// <exception cref="ArgumentException">Thrown when the buffer is empty.</exception>
-    internal static unsafe bool WriteProcessMemory(IntPtr processHandle, IntPtr address, ReadOnlySpan<byte> buffer)
+    internal static bool WriteProcessMemory(IntPtr processHandle, IntPtr address, ReadOnlySpan<byte> buffer)
     {
         if (processHandle == IntPtr.Zero)
             throw new InvalidOperationException("Invalid process handle.");
 
         int size = buffer.Length;
+
         if (size == 0)
             throw new ArgumentException("Tried to write an empty data buffer.");
 
-        fixed (byte* pBuf = buffer)
-            return WriteProcessMemory(processHandle, address, pBuf, size, out nint bytesWritten) && bytesWritten == size;
+        // Early return for null address to avoid unnecessary kernel transition
+        if (address == IntPtr.Zero)
+            return false;
+
+        unsafe
+        {
+            fixed (byte* pBuf = buffer)
+                return WriteProcessMemory(processHandle, address, pBuf, size, out nint bytesWritten) && bytesWritten == size;
+        }
 
         // Import the WriteProcessMemory function from kernel32.dll.
         // It is used to write memory to the external process from a local buffer.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
         static unsafe extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte* lpBuffer, nint dwSize, [Out]out nint lpNumberOfBytesWritten);
-    }
-
-    /// <summary>
-    /// Writes a string into an external process's memory at a given address.
-    /// </summary>
-    /// <param name="processHandle">Handle to the external process.</param>
-    /// <param name="address">Memory address where the string will be written in the external process.</param>
-    /// <param name="value">The string to write.</param>
-    /// <param name="stringType">Specifies whether the string is ASCII or Unicode.</param>
-    /// <returns>Returns true if the string is successfully written, false otherwise.</returns>
-    /// <exception cref="ArgumentException">Thrown when the string is empty.</exception>
-    public static bool WriteString(IntPtr processHandle, IntPtr address, string value, StringType stringType)
-    {
-        if (string.IsNullOrEmpty(value))
-            throw new ArgumentException("String cannot be empty.");
-
-        ReadOnlySpan<byte> stringBytes = stringType switch
-        {
-            StringType.Unicode => MemoryMarshal.AsBytes(value.AsSpan()),
-            StringType.ASCII => System.Text.Encoding.ASCII.GetBytes(value),
-            _ => throw new NotImplementedException($"Unsupported string type. Note that {StringType.AutoDetect} is not supported for write uperations.")
-        };
-
-        return WriteProcessMemory(processHandle, address, stringBytes);
     }
 }
 

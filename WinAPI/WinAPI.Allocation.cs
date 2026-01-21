@@ -38,7 +38,6 @@ internal static partial class WinAPI
         // It is used to allocate memory in a external process' address space.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.SysInt)]
         static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, nint dwSize, uint flAllocationType, uint flProtect);
     }
 
@@ -61,7 +60,6 @@ internal static partial class WinAPI
         // It is used to free allocated memory in a process' address space.
         [DllImport(Libs.Kernel32)]
         [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
         static extern bool VirtualFreeEx(IntPtr hProcess, IntPtr lpAddress, nint dwSize, uint dwFreeType);
     }
 }

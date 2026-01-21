@@ -15,17 +15,15 @@ namespace JHelper.Common.ProcessInterop;
 public readonly struct ProcessModuleCollection : IEnumerable<ProcessModule>
 {
     private readonly IntPtr pHandle;
-    private readonly bool firstModuleOnly;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProcessModuleCollection"/> struct.
     /// </summary>
     /// <param name="processHandle">The handle to the target process.</param>
     /// <param name="firstModuleOnly">Whether to only retrieve the first module.</param>
-    public ProcessModuleCollection(IntPtr processHandle, bool firstModuleOnly)
+    public ProcessModuleCollection(IntPtr processHandle)
     {
         this.pHandle = processHandle;
-        this.firstModuleOnly = firstModuleOnly;
     }
 
     /// <summary>
@@ -68,7 +66,7 @@ public readonly struct ProcessModuleCollection : IEnumerable<ProcessModule>
     /// <returns>An IEnumerator object to iterate over the modules.</returns>
     IEnumerator IEnumerable.GetEnumerator()
     {
-        return WinAPI.EnumProcessModules(pHandle, firstModuleOnly).GetEnumerator();
+        return WinAPI.EnumProcessModules(pHandle).GetEnumerator();
     }
 
     /// <summary>
@@ -77,7 +75,7 @@ public readonly struct ProcessModuleCollection : IEnumerable<ProcessModule>
     /// <returns>An IEnumerator of ProcessModule to iterate over the modules.</returns>
     IEnumerator<ProcessModule> IEnumerable<ProcessModule>.GetEnumerator()
     {
-        return WinAPI.EnumProcessModules(pHandle, firstModuleOnly).GetEnumerator();
+        return WinAPI.EnumProcessModules(pHandle).GetEnumerator();
     }
 }
 

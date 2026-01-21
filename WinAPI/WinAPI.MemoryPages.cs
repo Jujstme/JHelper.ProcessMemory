@@ -24,7 +24,7 @@ internal static partial class WinAPI
 
         // Minimum memory address to start scanning (typically the first addressable memory region).
         nint min = 0x10000;
-
+        
         // Maximum memory address to scan up to.
         // For 64-bit processes, this is 0x00007FFFFFFEFFFF; for 32-bit, it's 0x7FFEFFFF.
         nint max = (nint)(Environment.Is64BitOperatingSystem && Is64Bit(pHandle) ? 0x00007FFFFFFEFFFF : 0x7FFEFFFF);
