@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace JHelper.Common.MemoryUtils;
 
@@ -10,79 +11,71 @@ namespace JHelper.Common.MemoryUtils;
 public static class Endian
 {
     /// <summary>
-    /// Converts the byte order (endianness) of an unmanaged type based on the desired endianness.
+    /// Converts the byte order (endianness) of a 16-bit signed integer based on the desired endianness.
     /// </summary>
-    /// <typeparam name="T">The unmanaged type to convert.</typeparam>
     /// <param name="value">The value whose byte order will be converted.</param>
-    /// <param name="endian">The desired endianness (either <see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
-    /// <returns>The value with its byte order converted to the specified endianness.</returns>
-    [SkipLocalsInit]
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T FromEndian<T>(T value, Endianness endian) where T : unmanaged
-    {
-        // Return the value as-is if the system's current endianness matches the desired target endianness.
-        if (BitConverter.IsLittleEndian == (endian == Endianness.Little))
-            return value;
-
-        var type = typeof(T);
-
-        // 1-byte types require no swapping.
-        if (type == typeof(byte) || type == typeof(sbyte))
-            return value;
-        
-        // 2-byte types (short, ushort)
-        if (type == typeof(ushort) || type == typeof(short))
-        {
-            ushort temp = Unsafe.As<T, ushort>(ref value);
-            temp = BinaryPrimitives.ReverseEndianness(temp);
-            return Unsafe.As<ushort, T>(ref temp);
-        }
-        
-        // 4-byte types (int, uint, float)
-        if (type == typeof(uint) || type == typeof(int) || type == typeof(float))
-        {
-            uint temp = Unsafe.As<T, uint>(ref value);
-            temp = BinaryPrimitives.ReverseEndianness(temp);
-            return Unsafe.As<uint, T>(ref temp);
-        }
-        
-        // 8-byte types (long, ulong, double)
-        if (type == typeof(long) || type == typeof(ulong) || type == typeof(double))
-        {
-            ulong temp = Unsafe.As<T, ulong>(ref value);
-            temp = BinaryPrimitives.ReverseEndianness(temp);
-            return Unsafe.As<ulong, T>(ref temp);
-        }
-
-        // Restrict usage exclusively to supported primitives to protect against accidental custom struct corruption.
-        throw new InvalidOperationException("FromEndian<T> is supported only primitive types.");
-    }
-
-    // Common unmanaged types
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static short FromEndian(this short value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a 16-bit unsigned integer based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ushort FromEndian(this ushort value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a 32-bit signed integer based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int FromEndian(this int value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a 32-bit unsigned integer based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint FromEndian(this uint value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a 64-bit signed integer based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static long FromEndian(this long value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a 64-bit unsigned integer based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ulong FromEndian(this ulong value, Endianness endian) => BitConverter.IsLittleEndian == (endian == Endianness.Little) ? value : BinaryPrimitives.ReverseEndianness(value);
     
+    /// <summary>
+    /// Converts the byte order (endianness) of a single-precision floating-point number based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float FromEndian(this float value, Endianness endian)
@@ -95,6 +88,12 @@ public static class Endian
         return Unsafe.As<uint, float>(ref bits);   
     }
 
+    /// <summary>
+    /// Converts the byte order (endianness) of a double-precision floating-point number based on the desired endianness.
+    /// </summary>
+    /// <param name="value">The value whose byte order will be converted.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <returns>The converted value matching the target endianness.</returns>
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static double FromEndian(this double value, Endianness endian)
@@ -111,16 +110,46 @@ public static class Endian
     /// Converts the byte order (endianness) of each element in a span of unmanaged types based on the desired endianness.
     /// </summary>
     /// <typeparam name="T">The unmanaged type contained within the span.</typeparam>
-    /// <param name="values">The span of values whose byte order will be converted.</param>
-    /// <param name="endian">The desired endianness (either <see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
-    public static void FromEndian<T>(Span<T> value, Endianness endian) where T : unmanaged
+    /// <param name="value">The span of values whose byte order will be converted in-place.</param>
+    /// <param name="endian">The desired endianness (<see cref="Endianness.Little"/> or <see cref="Endianness.Big"/>).</param>
+    /// <exception cref="InvalidOperationException">Thrown when <typeparamref name="T"/> is not a supported primitive size (2, 4, or 8 bytes).</exception>
+    public static void FromEndian<T>(this Span<T> value, Endianness endian) where T : unmanaged
     {
         if (BitConverter.IsLittleEndian == (endian == Endianness.Little))
             return;
 
-        // Swap the byte order of each element in the span.
-        for (int i = 0; i < value.Length; i++)
-            value[i] = FromEndian(value[i], endian);
+        Type type = typeof(T);
+
+        if (type == typeof(byte) || type == typeof(sbyte))
+            return;
+
+        // 2-byte types (short, ushort)
+        if (type == typeof(ushort) || type == typeof(short))
+        {
+            var casted = MemoryMarshal.Cast<T, ushort>(value);
+            for (int i = 0; i < casted.Length; i++)
+                casted[i] = BinaryPrimitives.ReverseEndianness(casted[i]);
+        }
+
+        // 4-byte types (int, uint, float)
+        else if (type == typeof(uint) || type == typeof(int) || type == typeof(float))
+        {
+            var casted = MemoryMarshal.Cast<T, uint>(value);
+            for (int i = 0; i < casted.Length; i++)
+                casted[i] = BinaryPrimitives.ReverseEndianness(casted[i]);
+        }
+
+        // 8-byte types (long, ulong, double)
+        else if (type == typeof(long) || type == typeof(ulong) || type == typeof(double))
+        {
+            var casted = MemoryMarshal.Cast<T, ulong>(value);
+            for (int i = 0; i < casted.Length; i++)
+                casted[i] = BinaryPrimitives.ReverseEndianness(casted[i]);
+        }
+
+        // Restrict usage exclusively to supported primitives to protect against accidental custom struct corruption.
+        else
+            throw new InvalidOperationException("You can switch endianness of Spans only with primitive types.");
     }
 }
 
@@ -129,6 +158,13 @@ public static class Endian
 /// </summary>
 public enum Endianness
 {
+    /// <summary>
+    /// Little-endian byte order (least significant byte first).
+    /// </summary>
     Little,
+
+    /// <summary>
+    /// Big-endian byte order (most significant byte first).
+    /// </summary>
     Big,
 }
