@@ -1,91 +1,91 @@
-﻿using System;
-using System.Runtime.CompilerServices;
+﻿using JHelper.Common.ProcessInterop;
+using System;
+using System.Runtime.InteropServices;
 
 namespace JHelper.Common.MemoryUtils;
 
 /// <summary>
-/// Represents a typed pointer abstraction for reading process memory.
-/// <typeparam name="TValue">The type of the value being pointed to.</typeparam>
-/// <typeparam name="TPointer">The type of the pointer/address (must be <see cref="int"/> or <see cref="long"/>).</typeparam>
+/// Represents a strongly typed 64-bit memory pointer.
 /// </summary>
-[SkipLocalsInit]
-public readonly struct Ptr<TValue, TPointer>
-    where TValue : unmanaged
-    where TPointer : unmanaged
+/// <typeparam name="T">The unmanaged structure or value type located at the pointer target address.</typeparam>
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct Pointer64<T> where T : unmanaged
 {
-    /// <summary>
-    /// The underlying value representing the pointer. Its interpretation depends on <typeparamref name="S"/>.
-    /// </summary>
-    private readonly TPointer _value;
+    private readonly long _value;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="Ptr{T, S}"/> struct with the specified value.
+    /// Initializes a new instance of the <see cref="Pointer64{T}"/> struct with a 64-bit memory address.
     /// </summary>
-    /// <param name="value">The value representing the pointer.</param>
-    public Ptr(TPointer value) => _value = value;
+    /// <param name="value">The 64-bit integer representing the raw memory address.</param>
+    public Pointer64(long value) => _value = value;
 
     /// <summary>
-    /// Gets the pointer as an <see cref="IntPtr"/>, interpreting it according to the size of <typeparamref name="S"/>.
-    /// Supports 32-bit (<see cref="int"/>) and 64-bit (<see cref="long"/>) pointers.
+    /// Gets the raw memory address.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown if <typeparamref name="S"/> is not 4 or 8 bytes in size.</exception>
-    public IntPtr Value
-    {
-        get
-        {
-            unsafe
-            {
-                fixed (void* ptr = &_value)
-                {
-                    return sizeof(TPointer) switch
-                    {
-                        4 => (IntPtr)(*(int*)ptr),
-                        8 => (IntPtr)(*(long*)ptr),
-                        _ => throw new InvalidOperationException(),
-                    };
-                }
-            }
-        }
-    }
+    public IntPtr Value => (IntPtr)_value;
 
     /// <summary>
-    /// Static constructor ensures that only supported pointer types are used.
+    /// Attempts to read and dereference the value of type <typeparamref name="T"/> from the specified process memory.
     /// </summary>
-    /// <exception cref="NotSupportedException">
-    /// Thrown if <typeparamref name="S"/> is not <see cref="int"/> or <see cref="long"/>.
-    /// </exception>
-    static Ptr()
-    {
-        if (typeof(TPointer) != typeof(int) && typeof(TPointer) != typeof(long))
-            throw new NotSupportedException($"An instance of Ptr<T, S> can only be instantiated as Ptr<T, int> or Ptr<T, long>");
-    }
+    /// <param name="process">The process memory reader used to access target memory.</param>
+    /// <param name="value">When this method returns, contains the value read from memory if successful; otherwise, default.</param>
+    /// <returns><c>true</c> if the memory read operation succeeded; otherwise, <c>false</c>.</returns>
+    public bool Deref(ProcessMemory process, out T value) => process.Read(Value, out value);
 
     /// <summary>
-    /// Reads the value of type <typeparamref name="T"/> from the specified process memory at the address of this pointer.
+    /// Reads and dereferences the value of type <typeparamref name="T"/> from the specified process memory.
     /// </summary>
-    /// <param name="process">The process memory wrapper to read from.</param>
-    /// <param name="value">Outputs the value read from memory.</param>
-    /// <returns>True if the read was successful; otherwise, false.</returns>
-    public bool Deref(Common.ProcessInterop.ProcessMemory process, out TValue value) => process.Read(Value, out value);
+    /// <param name="process">The process memory reader used to access target memory.</param>
+    /// <returns>The value of type <typeparamref name="T"/> read from memory.</returns>
+    public T Deref(ProcessMemory process) => process.Read<T>(Value);
 
     /// <summary>
-    /// Reads and returns the value of type <typeparamref name="T"/> from the specified process memory at the address of this pointer.
+    /// Reinterprets the pointer address as pointing to a different unmanaged target type.
     /// </summary>
-    /// <param name="process">The process memory wrapper to read from.</param>
-    /// <returns>The value read from memory.</returns>
-    public TValue Deref(Common.ProcessInterop.ProcessMemory process) => process.Read<TValue>(Value);
+    /// <typeparam name="U">The new unmanaged type to cast the pointer address to.</typeparam>
+    /// <returns>A new <see cref="Pointer64{U}"/> targeting the same 64-bit memory address.</returns>
+    public Pointer64<U> Cast<U>() where U : unmanaged => new Pointer64<U>(_value);
+}
+
+/// <summary>
+/// Represents a strongly typed 32-bit memory pointer.
+/// </summary>
+/// <typeparam name="T">The unmanaged structure or value type located at the pointer target address.</typeparam>
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct Pointer32<T> where T : unmanaged
+{
+    private readonly int _value;
 
     /// <summary>
-    /// Casts a pointer from the same address to a different value type.
-    /// This is useful when you want to reinterpret the pointed-to memory as a different type.
+    /// Initializes a new instance of the <see cref="Pointer32{T}"/> struct with a 32-bit memory address.
     /// </summary>
-    /// <typeparam name="RValue">The new type of the value being pointed to. Must be an unmanaged type.</typeparam>
-    /// <returns>
-    /// A new <see cref="Ptr{RValue, TPointer}"/> instance with the same pointer address
-    /// but pointing to a value of type <typeparamref name="RValue"/>.
-    /// </returns>
-    public Ptr<RValue, TPointer> Cast<RValue>() where RValue : unmanaged
-    {
-        return new Ptr<RValue, TPointer>(_value);
-    }
+    /// <param name="value">The 32-bit integer representing the raw memory address.</param>
+    public Pointer32(int value) => _value = value;
+
+    /// <summary>
+    /// Gets the raw memory address.
+    /// </summary>
+    public IntPtr Value => (IntPtr)(long)(uint)_value;
+
+    /// <summary>
+    /// Attempts to read and dereference the value of type <typeparamref name="T"/> from the specified process memory.
+    /// </summary>
+    /// <param name="process">The process memory reader used to access target memory.</param>
+    /// <param name="value">When this method returns, contains the value read from memory if successful; otherwise, default.</param>
+    /// <returns><c>true</c> if the memory read operation succeeded; otherwise, <c>false</c>.</returns>
+    public bool Deref(ProcessMemory process, out T value) => process.Read(Value, out value);
+
+    /// <summary>
+    /// Reads and dereferences the value of type <typeparamref name="T"/> from the specified process memory.
+    /// </summary>
+    /// <param name="process">The process memory reader used to access target memory.</param>
+    /// <returns>The value of type <typeparamref name="T"/> read from memory.</returns>
+    public T Deref(ProcessMemory process) => process.Read<T>(Value);
+
+    /// <summary>
+    /// Reinterprets the pointer address as pointing to a different unmanaged target type.
+    /// </summary>
+    /// <typeparam name="U">The new unmanaged type to cast the pointer address to.</typeparam>
+    /// <returns>A new <see cref="Pointer32{U}"/> targeting the same 32-bit memory address.</returns>
+    public Pointer32<U> Cast<U>() where U : unmanaged => new Pointer32<U>(_value);
 }
